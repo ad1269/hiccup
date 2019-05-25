@@ -1,0 +1,21 @@
+# Programs with conditionals, booleans, and function calls
+
+assign factorial = lambda n $
+    if (<= n 0)
+        then
+            1
+        else
+            (* 
+                n 
+                (factorial (- n 1))
+            )
+
+assign fib = lambda n $
+    if (<= n 2)
+        then
+            1 
+        else
+            (+ 
+                (fib (- n 1)) 
+                (fib (- n 2))
+            )

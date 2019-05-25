@@ -1,0 +1,13 @@
+Basic lists and list functions
+Functions: [get, length]
+TODO: [Implement put, pop, any, all, map, range, filter, reduce, concat]
+
+assign qsort = lambda lst $
+    if (<= (length lst) 1)
+        then
+            lst
+        else
+            (concat
+                (qsort (filter lst (lambda x $ (< x (get lst 0)))))
+                (qsort (filter lst (lambda x $ (>= x (get lst 0)))))
+            )

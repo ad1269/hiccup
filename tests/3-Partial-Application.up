@@ -1,0 +1,5 @@
+# Partial application of functions & anonymous lambda functions
+# TODO: [Convert to use anonymous functions]
+
+assign isNotDiv = lambda a b $ (! (% a b))
+assign isPrime = lambda n $ if (n <= 3) then true else (any (map (isNotDiv n) (range 2 n)))
