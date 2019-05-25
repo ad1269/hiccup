@@ -1,18 +1,22 @@
 # Basic lists and list functions
-# Functions: [get, length, map]
-# TODO: [Implement put, pop, any, all, range, filter, reduce, concat]
+# Functions: [get, length, map, range, any, all, filter, concat, pop, put]
+# TODO: [Implement reduce]
 
-# assign qsort = lambda lst $
-#    if (<= (length lst) 1)
-#        then
-#            lst
-#        else
-#            (concat
-#                (qsort (filter lst (lambda x $ (< x (get lst 0)))))
-#                (qsort (filter lst (lambda x $ (>= x (get lst 0)))))
-#            );
+assign qsort = lambda lst $
+   if (<= (length lst) 1)
+       then
+           lst
+       else
+           (concat
+               (qsort (filter (lambda x $ (< x (get lst 0))) (pop lst 0)))
+               [(get lst 0)]
+               (qsort (filter (lambda x $ (>= x (get lst 0))) (pop lst 0)))
+           );
 
-assign lst = [1, 2, 3];
+assign lst = [9, 3, 6, 9, 2, 4, 8, 3, 3];
 assign a = (map (lambda x $ (* 2 x)) lst);
 
-assign test_scope = lambda i $ (map (lambda x $ (* (get lst i) x)) lst);
+assign testScope = lambda i $ (map (lambda x $ (* (get lst i) x)) lst);
+
+assign isNotDiv = lambda a b $ (! (% a b));
+assign isPrime = lambda n $ if (<= n 3) then True else (! (any (map (lambda d $ (== (% n d) 0)) (range 2 n))));

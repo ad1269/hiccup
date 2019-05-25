@@ -66,8 +66,8 @@ tokenize (x:xs)
             case name of
                 "assign" -> KEYWORD_ASSIGN : (tokenize left)
                 "lambda" -> KEYWORD_LAMBDA : (tokenize left)
-                "true" -> BOOLLIT True : (tokenize left)
-                "false" -> BOOLLIT False : (tokenize left)
+                "True" -> BOOLLIT True : (tokenize left)
+                "False" -> BOOLLIT False : (tokenize left)
                 "if" -> KEYWORD_IF : (tokenize left)
                 "then" -> KEYWORD_THEN : (tokenize left)
                 "else" -> KEYWORD_ELSE : (tokenize left)
@@ -333,7 +333,9 @@ libFuncEnv :: Map String (Map String LangType -> [LangType] -> LangType)
 libFuncEnv = Map.fromList [ ("+", plus), ("-", minus), ("*", times), ("/", libdiv), ("<", lt),
                             ("<=", lte), (">", gt), (">=", gte), ("==", e), ("!=", ne), ("!", libnot),
                             ("&", liband), ("|", libor), ("%", libmod), ("get", liblist_get), ("length", liblist_len),
-                            ("map", liblist_map)]
+                            ("map", liblist_map), ("range", liblist_range), ("any", liblist_any),
+                            ("all", liblist_all), ("filter", liblist_filter), ("concat", liblist_concat),
+                            ("pop", liblist_pop), ("put", liblist_put)]
 
 liblist_get :: Map String LangType -> [LangType] -> LangType
 liblist_get _ (ListType valList : IntType ind: []) =
@@ -342,9 +344,59 @@ liblist_get _ (ListType valList : IntType ind: []) =
         else error $ "List index out of range."
 liblist_get _ _ = error $ "get takes exactly two arguments: A ListType and an IntType."
 
+removeIndex [] 0 = error "Cannot remove from empty array"
+removeIndex xs n = fst notGlued ++ snd notGlued
+    where notGlued = (take n xs, drop (n+1) xs)
+
+insertAtIndex x xs n = take n xs ++ [x] ++ drop n xs
+
+liblist_pop :: Map String LangType -> [LangType] -> LangType
+liblist_pop _ (ListType valList : IntType ind: []) =
+    if (length valList) > ind
+        then ListType $ removeIndex valList ind
+        else error $ "List index out of range."
+liblist_pop _ _ = error $ "pop takes exactly two arguments: A ListType and an IntType."
+
+liblist_put :: Map String LangType -> [LangType] -> LangType
+liblist_put _ (item : ListType valList : IntType ind: []) =
+    if (length valList) > ind
+        then ListType $ insertAtIndex item valList ind
+        else error $ "List index out of range."
+liblist_put _ _ = error $ "put takes exactly three arguments: A LangType, a ListType, and an IntType."
+
 liblist_len :: Map String LangType -> [LangType] -> LangType
 liblist_len _ (ListType valList : []) = IntType (length valList)
 liblist_len _ _ = error $ "length takes exactly one ListType argument."
+
+liblist_any :: Map String LangType -> [LangType] -> LangType
+liblist_any _ (ListType valList : []) = BoolType $ length (filter 
+    (\elem -> case elem of
+        (BoolType value) -> value
+        otherwise -> False)
+    valList) > 0
+liblist_any _ _ = error $ "any takes exactly one ListType argument."
+
+liblist_all :: Map String LangType -> [LangType] -> LangType
+liblist_all _ (ListType valList : []) = BoolType $ length (filter 
+    (\elem -> case elem of
+        (BoolType value) -> value
+        otherwise -> False)
+    valList) == (length valList)
+liblist_all _ _ = error $ "all takes exactly one ListType argument."
+
+liblist_concat :: Map String LangType -> [LangType] -> LangType
+liblist_concat _ [] = error $ "Must have at least one argument."
+liblist_concat _ (ListType valList1 : []) = ListType valList1
+liblist_concat _ (ListType valList1 : xs) = 
+    let (ListType valList2) = liblist_concat Map.empty xs
+    in
+         ListType $ valList1 ++ valList2
+liblist_concat _ _ = error $ "concat takes only ListType arguments."
+
+liblist_range :: Map String LangType -> [LangType] -> LangType
+liblist_range _ (IntType start : IntType end : []) = ListType (map IntType [start..end-1])
+liblist_range _ (IntType start : IntType end : IntType step : []) = ListType (map IntType [start,start+step..end-1])
+liblist_range _ _ = error $ "range takes exactly two or three IntType argument."
 
 liblist_map :: Map String LangType -> [LangType] -> LangType
 liblist_map env (FuncType params body : ListType valList : []) =
@@ -353,8 +405,20 @@ liblist_map env (FuncType params body : ListType valList : []) =
             error $ "Map function must take exactly one argument."
         else
             ListType (map (\arg -> fst $ evalExpr body $ bindAll params (arg:[]) env) valList)
-
 liblist_map _ _ = error $ "map takes takes exactly two arguments: A FuncType and a ListType."
+
+liblist_filter :: Map String LangType -> [LangType] -> LangType
+liblist_filter env (FuncType params body : ListType valList : []) =
+    if length params /= 1
+        then
+            error $ "Filter function must take exactly one argument."
+        else
+            ListType (filter (\arg -> 
+                            case fst $ evalExpr body $ bindAll params (arg:[]) env of
+                                (BoolType value) -> value
+                                otherwise -> False)
+                        valList)
+liblist_filter _ _ = error $ "filter takes takes exactly two arguments: A FuncType and a ListType."
 
 plus :: Map String LangType -> [LangType] -> LangType
 plus = libop (+) (+)
