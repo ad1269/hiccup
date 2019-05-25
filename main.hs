@@ -8,7 +8,17 @@ import Parser
 
 main :: IO ()
 main = do
-    repl $ Map.fromList []
+    args <- getArgs
+    case args of
+        [] -> repl $ Map.fromList []
+        (file: []) -> run file $ Map.fromList []
+    
+run :: String -> Map String LangType -> IO ()
+run fileName env = do
+    contents <- readFile fileName
+    let (res, env) = eval contents
+    putStrLn $ fileName ++ " loaded."
+    repl env
 
 repl :: Map String LangType -> IO ()
 repl env = do

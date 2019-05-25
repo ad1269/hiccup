@@ -8,7 +8,7 @@ assign factorial = lambda n $
             (* 
                 n 
                 (factorial (- n 1))
-            )
+            );
 
 assign fib = lambda n $
     if (<= n 2)
@@ -18,4 +18,4 @@ assign fib = lambda n $
             (+ 
                 (fib (- n 1)) 
                 (fib (- n 2))
-            )
+            );

@@ -73,6 +73,7 @@ tokenize (x:xs)
                 "else" -> KEYWORD_ELSE : (tokenize left)
                 otherwise -> VAR name : (tokenize left)
     | x == ' ' || x == '\n' = tokenize xs
+    | x == '#' = tokenize $ dropWhile (\c -> c /= '\n') xs
     | otherwise = error $ "Unknown character found: " ++ [x]
 
 isDigit :: Char -> Bool
@@ -209,7 +210,11 @@ parseFuncCall str =
     in
         case funcVarUse of
             (VarUse funcName) -> parseFuncCallArguments funcVarUse left1
-            otherwise -> error $ "Expected function name, got " ++ (show funcVarUse)
+            (Func _ _) ->
+                case left1 of
+                    (RPAREN: _) -> (funcVarUse, tail left1)
+                    otherwise -> error $ "Forgot closing parenthesis on lambda function."
+            otherwise -> error $ "Expected function name or lambda, got " ++ (show funcVarUse)
 
 parseFuncCallArguments :: Expr -> [Token] -> (Expr, [Token])
 parseFuncCallArguments funcVarUse str =
@@ -327,7 +332,8 @@ getLibFunc name =
 libFuncEnv :: Map String (Map String LangType -> [LangType] -> LangType)
 libFuncEnv = Map.fromList [ ("+", plus), ("-", minus), ("*", times), ("/", libdiv), ("<", lt),
                             ("<=", lte), (">", gt), (">=", gte), ("==", e), ("!=", ne), ("!", libnot),
-                            ("&", liband), ("|", libor), ("%", libmod), ("get", liblist_get), ("length", liblist_len)]
+                            ("&", liband), ("|", libor), ("%", libmod), ("get", liblist_get), ("length", liblist_len),
+                            ("map", liblist_map)]
 
 liblist_get :: Map String LangType -> [LangType] -> LangType
 liblist_get _ (ListType valList : IntType ind: []) =
@@ -341,7 +347,13 @@ liblist_len _ (ListType valList : []) = IntType (length valList)
 liblist_len _ _ = error $ "length takes exactly one ListType argument."
 
 liblist_map :: Map String LangType -> [LangType] -> LangType
-liblist_map env (FuncType params body : ListType valList : []) = None
+liblist_map env (FuncType params body : ListType valList : []) =
+    if length params /= 1
+        then
+            error $ "Map function must take exactly one argument."
+        else
+            ListType (map (\arg -> fst $ evalExpr body $ bindAll params (arg:[]) env) valList)
+
 liblist_map _ _ = error $ "map takes takes exactly two arguments: A FuncType and a ListType."
 
 plus :: Map String LangType -> [LangType] -> LangType

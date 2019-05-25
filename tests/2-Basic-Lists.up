@@ -1,13 +1,18 @@
-Basic lists and list functions
-Functions: [get, length]
-TODO: [Implement put, pop, any, all, map, range, filter, reduce, concat]
+# Basic lists and list functions
+# Functions: [get, length, map]
+# TODO: [Implement put, pop, any, all, range, filter, reduce, concat]
 
-assign qsort = lambda lst $
-    if (<= (length lst) 1)
-        then
-            lst
-        else
-            (concat
-                (qsort (filter lst (lambda x $ (< x (get lst 0)))))
-                (qsort (filter lst (lambda x $ (>= x (get lst 0)))))
-            )
+# assign qsort = lambda lst $
+#    if (<= (length lst) 1)
+#        then
+#            lst
+#        else
+#            (concat
+#                (qsort (filter lst (lambda x $ (< x (get lst 0)))))
+#                (qsort (filter lst (lambda x $ (>= x (get lst 0)))))
+#            );
+
+assign lst = [1, 2, 3];
+assign a = (map (lambda x $ (* 2 x)) lst);
+
+assign test_scope = lambda i $ (map (lambda x $ (* (get lst i) x)) lst);
