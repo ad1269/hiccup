@@ -6,9 +6,9 @@ import qualified Data.Map as Map
 
 -- Lexer Tokens
 
-data Token = INTLIT Int | FLOATLIT Float | BOOLLIT Bool | KEYWORD_ASSIGN | KEYWORD_LAMBDA | KEYWORD_IF
-    | KEYWORD_THEN | KEYWORD_ELSE | VAR String | LPAREN | RPAREN | LBRACKET | RBRACKET | COMMA
-    | EQUALS | SEMICOLON | DOLLAR
+data Token = INTLIT Int | FLOATLIT Float | BOOLLIT Bool | STRINGLIT String | CHARLIT Char | KEYWORD_ASSIGN
+    | KEYWORD_LAMBDA | KEYWORD_IF | KEYWORD_THEN | KEYWORD_ELSE | VAR String | LPAREN | RPAREN | LBRACKET
+    | RBRACKET | COMMA | EQUALS | SEMICOLON | DOLLAR 
     deriving (Show, Eq)
 
 -- Language Grammar
@@ -19,6 +19,7 @@ data Expr = Empty
     | IntLiteral Int
     | FloatLiteral Float
     | BoolLiteral Bool
+    | CharLiteral Char
     | ListLiteral [Expr] -- Evaluates to a ListType object
     | VarUse String -- Evaluates to variable's value
     | FuncCall Expr [Expr] -- First argument must evaluate to VarUse
@@ -29,13 +30,14 @@ data Expr = Empty
 
 -- Language Types
 -- TODO: Add support for strings and lists.
-data LangType = None | IntType Int | FloatType Float | BoolType Bool
+data LangType = None | IntType Int | FloatType Float | BoolType Bool | CharType Char
     | FuncType [String] Expr | ListType [LangType]
 
 instance Show LangType where
     show (FloatType val) = show val
     show (IntType val) = show val
     show (BoolType val) = show val
+    show (CharType val) = show val
     show (FuncType params body) = "lambda " ++ (show params) ++ " -> " ++ (show body)
     show (ListType elements) = show elements
     show (None) = ""
@@ -51,6 +53,16 @@ tokenize (x:xs)
     | x == ']' = RBRACKET : (tokenize xs)
     | x == ',' = COMMA : (tokenize xs)
     | x == ';' = SEMICOLON : (tokenize xs)
+    | x == '\"' =
+        let rest = dropWhile (/= '\"') xs
+        in
+            case rest of
+                ('\"': xs2) -> STRINGLIT (takeWhile (/= '\"') xs) : (tokenize xs2)
+                otherwise -> error $ "StringLiteral must be terminated by double quotes."
+    | x == '\'' =
+        case xs of
+            (c:'\'':xs2) -> CHARLIT c : (tokenize xs2)
+            otherwise -> error "CharLiteral must contain only one character and be terminated by single quote."
     | x == '=' =
         case xs of
             ('=': xs2) -> VAR "==" : (tokenize xs2)
@@ -138,6 +150,8 @@ parseExpr str =
         INTLIT _ -> parseIntLiteral str
         FLOATLIT _ -> parseFloatLiteral str
         BOOLLIT _ -> parseBoolLiteral str
+        CHARLIT _ -> parseCharLiteral str
+        STRINGLIT _ -> parseStringLiteral str
         KEYWORD_LAMBDA -> parseFunction (tail str)
         otherwise -> error $ "Expected expression, unexpected token: " ++ (show (head str))
 
@@ -240,6 +254,11 @@ parseFloatLiteral (FLOATLIT val:xs) = (FloatLiteral val, xs)
 parseBoolLiteral :: [Token] -> (Expr, [Token])
 parseBoolLiteral (BOOLLIT val:xs) = (BoolLiteral val, xs)
 
+parseCharLiteral :: [Token] -> (Expr, [Token])
+parseCharLiteral (CHARLIT val:xs) = (CharLiteral val, xs)
+
+parseStringLiteral :: [Token] -> (Expr, [Token])
+parseStringLiteral (STRINGLIT val:xs) = (ListLiteral $ map CharLiteral val, xs)
 -- Evaluator
 
 -- Takes in an expression and an environment mapping
@@ -272,6 +291,7 @@ evalExpr (FuncCall funcVarUse arguments) env =
 evalExpr (IntLiteral value) env = (IntType value, env)
 evalExpr (FloatLiteral value) env = (FloatType value, env)
 evalExpr (BoolLiteral value) env = (BoolType value, env)
+evalExpr (CharLiteral value) env = (CharType value, env)
 evalExpr (Func params body) env = (FuncType params body, env)
 
 evalExpr (ListLiteral elements) env = 
