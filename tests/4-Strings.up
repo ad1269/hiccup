@@ -1,5 +1,13 @@
-String algorithms
-TODO: CharType
-TODO: Unwrap string literals to list literals
+# String algorithms
+# TODO: Char functions [uppercase, lowercase]
+# TODO: String functions [substring~slice]
 
-assign str = "hello world"
+assign str = "hello world";
+
+assign containsSubstring = lambda document word $
+    if (< (length document) (length word))
+        then false
+    else if (== (length document) (length word))
+        then (== document word)
+    else
+        (| (== (slice document 0 (length word)) word) (containsSubstring (pop 0 document) word));
