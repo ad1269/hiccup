@@ -1,2 +1,5 @@
 String algorithms
+TODO: CharType
 TODO: Unwrap string literals to list literals
+
+assign str = "hello world"

@@ -294,8 +294,13 @@ evalExpr (Assignment name expr) env =
 
 evalExpr (VarUse name) env =
     case Map.lookup name env of
-        Nothing -> error $ "Variable '" ++ name ++ "' not declared."
+        Nothing ->
+            case Map.lookup name libFuncEnv of
+                Nothing -> error $ "Variable '" ++ name ++ "' not declared and not library function."
+                Just _ -> evalExpr (Func args (FuncCall (VarUse name) (map VarUse args))) env
+                    where args = map (\x -> x:[]) $ take (getNumArgs name) "abcdefghi"
         Just value -> (value, env)
+
 
 evalExpr Empty env = (None, env)
 
@@ -335,7 +340,37 @@ libFuncEnv = Map.fromList [ ("+", plus), ("-", minus), ("*", times), ("/", libdi
                             ("&", liband), ("|", libor), ("%", libmod), ("get", liblist_get), ("length", liblist_len),
                             ("map", liblist_map), ("range", liblist_range), ("any", liblist_any),
                             ("all", liblist_all), ("filter", liblist_filter), ("concat", liblist_concat),
-                            ("pop", liblist_pop), ("put", liblist_put)]
+                            ("pop", liblist_pop), ("put", liblist_put), ("reduce", liblist_reduce)]
+
+getNumArgs :: String -> Int
+getNumArgs str =
+    case str of
+        "!" -> 1
+        "length" -> 1
+        "any" -> 1
+        "all" -> 1
+        "+" -> 2
+        "-" -> 2
+        "*" -> 2
+        "/" -> 2
+        "%" -> 2
+        "<" -> 2
+        ">" -> 2
+        "&" -> 2
+        "|" -> 2
+        "<=" -> 2
+        ">=" -> 2
+        "==" -> 2
+        "!=" -> 2
+        "get" -> 2
+        "pop" -> 2
+        "map" -> 2
+        "filter" -> 2
+        "range" -> 2
+        "concat" -> 2
+        "reduce" -> 3
+        "put" -> 3
+        otherwise -> error $ "Unknown library function."
 
 liblist_get :: Map String LangType -> [LangType] -> LangType
 liblist_get _ (ListType valList : IntType ind: []) =
@@ -419,6 +454,15 @@ liblist_filter env (FuncType params body : ListType valList : []) =
                                 otherwise -> False)
                         valList)
 liblist_filter _ _ = error $ "filter takes takes exactly two arguments: A FuncType and a ListType."
+
+liblist_reduce :: Map String LangType -> [LangType] -> LangType
+liblist_reduce env (FuncType params body : startValue : ListType valList : []) =
+    if length params /= 2
+        then
+            error $ "Reduce function must take exactly two arguments."
+        else
+             foldl (\arg1 arg2 -> fst $ evalExpr body $ bindAll params (arg1:arg2:[]) env) startValue valList
+liblist_reduce _ _ = error $ "reduce takes takes exactly three arguments: A start value, a FuncType and a ListType."
 
 plus :: Map String LangType -> [LangType] -> LangType
 plus = libop (+) (+)
