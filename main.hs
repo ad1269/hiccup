@@ -3,7 +3,6 @@ import System.Environment
 import System.IO
 import Data.Map (Map)
 
---import Parser
 import Interpreter
 
 main :: IO ()

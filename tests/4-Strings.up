@@ -1,6 +1,6 @@
 # String algorithms
 # TODO: Char functions [uppercase, lowercase]
-# TODO: String functions [substring~slice]
+# TODO: String functions
 
 assign str = "hello world";
 
@@ -10,4 +10,4 @@ assign containsSubstring = lambda document word $
     else if (== (length document) (length word))
         then (== document word)
     else
-        (| (== (slice document 0 (length word)) word) (containsSubstring (pop 0 document) word));
+        (| (== (slice document 0 (length word)) word) (containsSubstring (pop document 0) word));
