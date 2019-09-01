@@ -11,6 +11,7 @@ main = do
     case args of
         [] -> repl emptyEnvironment
         (file: []) -> run file emptyEnvironment
+        otherwise -> error "main only takes up to 1 argument!"
     
 run :: String -> Map String LangType -> IO ()
 run fileName env = do
