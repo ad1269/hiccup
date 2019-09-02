@@ -13,14 +13,14 @@ main = do
         (file: []) -> run file emptyEnvironment
         otherwise -> error "main only takes up to 1 argument!"
     
-run :: String -> Map String LangType -> IO ()
+run :: String -> Environment -> IO ()
 run fileName env = do
     contents <- readFile fileName
     let (res, env) = eval contents
     putStrLn $ fileName ++ " loaded."
     repl env
 
-repl :: Map String LangType -> IO ()
+repl :: Environment -> IO ()
 repl env = do
     putStr ">>> "
     hFlush stdout

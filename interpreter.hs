@@ -2,7 +2,7 @@ module Interpreter
 ( eval
 , evalInEnvironment
 , emptyEnvironment
-, LangType
+, Environment
 ) where
 
 import Data.Map (Map)
@@ -12,6 +12,8 @@ import Parser
 -- Language Types
 data LangType = None | IntType Int | FloatType Float | BoolType Bool | CharType Char
     | FuncType [String] Expr | ListType [LangType]
+
+type Environment = Map String LangType
 
 instance Show LangType where
     show (FloatType val) = show val
@@ -23,21 +25,21 @@ instance Show LangType where
     show (None) = ""
 
 -- Exported functions
-evalInEnvironment :: String -> Map String LangType -> ([LangType], Map String LangType)
+evalInEnvironment :: String -> Environment -> ([LangType], Environment)
 evalInEnvironment str env = evalListExprs exprs $ env
     where (Program exprs) = parse str
 
-eval :: String -> ([LangType], Map String LangType)
+eval :: String -> ([LangType], Environment)
 eval str = evalInEnvironment str emptyEnvironment
 
-emptyEnvironment :: Map String LangType
+emptyEnvironment :: Environment
 emptyEnvironment = Map.fromList []
 
 -- Evaluator
 
 -- Takes in an expression and an environment mapping
 -- Returns the evaluated expression and an updated environment
-evalExpr :: Expr -> Map String LangType -> (LangType, Map String LangType)
+evalExpr :: Expr -> Environment -> (LangType, Environment)
 
 evalExpr (FuncCall funcVarUse arguments) env =
     let (VarUse funcName) = funcVarUse
@@ -98,14 +100,14 @@ evalExpr (VarUse name) env =
 
 evalExpr Empty env = (None, env)
 
-bindAll :: [String] -> [LangType] -> Map String LangType -> Map String LangType
+bindAll :: [String] -> [LangType] -> Environment -> Environment
 bindAll [] [] env = env
 bindAll [] (x:xs) _ = error $ "Number of arguments doesn't match number of parameters!"
 bindAll (x:xs) [] _ = error $ "Number of arguments doesn't match number of parameters!"
 bindAll (p:ps) (a:as) env =
     bindAll ps as $ Map.insert p a env
 
-evalListExprs :: [Expr] -> Map String LangType -> ([LangType], Map String LangType)
+evalListExprs :: [Expr] -> Environment -> ([LangType], Environment)
 evalListExprs [] env = ([], env)
 evalListExprs (expr:rest) env = 
     let (eval, env1) = evalExpr expr env
@@ -116,13 +118,13 @@ evalListExprs (expr:rest) env =
 
 -- Library Functions
 
-getLibFunc :: String -> (Map String LangType -> [LangType] -> LangType)
+getLibFunc :: String -> (Environment -> [LangType] -> LangType)
 getLibFunc name = 
     case Map.lookup name libFuncEnv of
         Nothing -> error $ "Variable '" ++ name ++ "' not declared and is not library function."
         Just value -> value
 
-libFuncEnv :: Map String (Map String LangType -> [LangType] -> LangType)
+libFuncEnv :: Map String (Environment -> [LangType] -> LangType)
 libFuncEnv = Map.fromList [ ("+", plus), ("-", minus), ("*", times), ("/", libdiv), ("<", lt),
                             ("<=", lte), (">", gt), (">=", gte), ("==", e), ("!=", ne), ("!", libnot),
                             ("&", liband), ("|", libor), ("%", libmod), ("get", liblist_get), ("length", liblist_len),
@@ -163,7 +165,7 @@ getNumArgs str =
         "slice" -> 3
         otherwise -> error $ "Unknown library function."
 
-liblist_get :: Map String LangType -> [LangType] -> LangType
+liblist_get :: Environment -> [LangType] -> LangType
 liblist_get _ (ListType valList : IntType ind: []) =
     if (length valList) > ind
         then valList !! ind 
@@ -176,25 +178,25 @@ removeIndex xs n = fst notGlued ++ snd notGlued
 
 insertAtIndex x xs n = take n xs ++ [x] ++ drop n xs
 
-liblist_pop :: Map String LangType -> [LangType] -> LangType
+liblist_pop :: Environment -> [LangType] -> LangType
 liblist_pop _ (ListType valList : IntType ind: []) =
     if (length valList) > ind
         then ListType $ removeIndex valList ind
         else error $ "List index out of range: " ++ (show ind)
 liblist_pop _ _ = error $ "pop takes exactly two arguments: A ListType and an IntType."
 
-liblist_put :: Map String LangType -> [LangType] -> LangType
+liblist_put :: Environment -> [LangType] -> LangType
 liblist_put _ (item : ListType valList : IntType ind: []) =
     if (length valList) >= ind
         then ListType $ insertAtIndex item valList ind
         else error $ "List index out of range: " ++ (show ind)
 liblist_put _ _ = error $ "put takes exactly three arguments: A LangType, a ListType, and an IntType."
 
-liblist_len :: Map String LangType -> [LangType] -> LangType
+liblist_len :: Environment -> [LangType] -> LangType
 liblist_len _ (ListType valList : []) = IntType (length valList)
 liblist_len _ _ = error $ "length takes exactly one ListType argument."
 
-liblist_any :: Map String LangType -> [LangType] -> LangType
+liblist_any :: Environment -> [LangType] -> LangType
 liblist_any _ (ListType valList : []) = BoolType $ length (filter 
     (\elem -> case elem of
         (BoolType value) -> value
@@ -202,7 +204,7 @@ liblist_any _ (ListType valList : []) = BoolType $ length (filter
     valList) > 0
 liblist_any _ _ = error $ "any takes exactly one ListType argument."
 
-liblist_all :: Map String LangType -> [LangType] -> LangType
+liblist_all :: Environment -> [LangType] -> LangType
 liblist_all _ (ListType valList : []) = BoolType $ length (filter 
     (\elem -> case elem of
         (BoolType value) -> value
@@ -210,7 +212,7 @@ liblist_all _ (ListType valList : []) = BoolType $ length (filter
     valList) == (length valList)
 liblist_all _ _ = error $ "all takes exactly one ListType argument."
 
-liblist_concat :: Map String LangType -> [LangType] -> LangType
+liblist_concat :: Environment -> [LangType] -> LangType
 liblist_concat _ [] = error $ "Must have at least one argument."
 liblist_concat _ (ListType valList1 : []) = ListType valList1
 liblist_concat _ (ListType valList1 : xs) = 
@@ -219,12 +221,12 @@ liblist_concat _ (ListType valList1 : xs) =
          ListType $ valList1 ++ valList2
 liblist_concat _ _ = error $ "concat takes only ListType arguments."
 
-liblist_range :: Map String LangType -> [LangType] -> LangType
+liblist_range :: Environment -> [LangType] -> LangType
 liblist_range _ (IntType start : IntType end : []) = ListType (map IntType [start..end-1])
 liblist_range _ (IntType start : IntType end : IntType step : []) = ListType (map IntType [start,start+step..end-1])
 liblist_range _ _ = error $ "range takes exactly two or three IntType argument."
 
-liblist_map :: Map String LangType -> [LangType] -> LangType
+liblist_map :: Environment -> [LangType] -> LangType
 liblist_map env (FuncType params body : ListType valList : []) =
     if length params /= 1
         then
@@ -233,7 +235,7 @@ liblist_map env (FuncType params body : ListType valList : []) =
             ListType (map (\arg -> fst $ evalExpr body $ bindAll params (arg:[]) env) valList)
 liblist_map _ _ = error $ "map takes takes exactly two arguments: A FuncType and a ListType."
 
-liblist_filter :: Map String LangType -> [LangType] -> LangType
+liblist_filter :: Environment -> [LangType] -> LangType
 liblist_filter env (FuncType params body : ListType valList : []) =
     if length params /= 1
         then
@@ -246,7 +248,7 @@ liblist_filter env (FuncType params body : ListType valList : []) =
                         valList)
 liblist_filter _ _ = error $ "filter takes takes exactly two arguments: A FuncType and a ListType."
 
-liblist_foldl :: Map String LangType -> [LangType] -> LangType
+liblist_foldl :: Environment -> [LangType] -> LangType
 liblist_foldl env (FuncType params body : startValue : ListType valList : []) =
     if length params /= 2
         then
@@ -255,7 +257,7 @@ liblist_foldl env (FuncType params body : startValue : ListType valList : []) =
              foldl (\arg1 arg2 -> fst $ evalExpr body $ bindAll params (arg1:arg2:[]) env) startValue valList
 liblist_foldl _ _ = error $ "foldl takes takes exactly three arguments: A start value, a FuncType and a ListType."
 
-liblist_foldr :: Map String LangType -> [LangType] -> LangType
+liblist_foldr :: Environment -> [LangType] -> LangType
 liblist_foldr env (FuncType params body : startValue : ListType valList : []) =
     if length params /= 2
         then
@@ -264,38 +266,38 @@ liblist_foldr env (FuncType params body : startValue : ListType valList : []) =
              foldr (\arg1 arg2 -> fst $ evalExpr body $ bindAll params (arg1:arg2:[]) env) startValue valList
 liblist_foldr _ _ = error $ "foldr takes takes exactly three arguments: A start value, a FuncType and a ListType."
 
-liblist_slice :: Map String LangType -> [LangType] -> LangType
+liblist_slice :: Environment -> [LangType] -> LangType
 liblist_slice env (ListType values : IntType start : IntType end : []) = ListType $ drop start $ take end values
 liblist_slice _ _ = error $ "slice takes takes exactly three arguments: A ListType, and two IntTypes."
 
-plus :: Map String LangType -> [LangType] -> LangType
+plus :: Environment -> [LangType] -> LangType
 plus = libop (+) (+)
 
-minus :: Map String LangType -> [LangType] -> LangType
+minus :: Environment -> [LangType] -> LangType
 minus = libop (-) (-)
 
-times :: Map String LangType -> [LangType] -> LangType
+times :: Environment -> [LangType] -> LangType
 times = libop (*) (*)
 
-libdiv :: Map String LangType -> [LangType] -> LangType
+libdiv :: Environment -> [LangType] -> LangType
 libdiv = libop div (/)
 
-libmod :: Map String LangType -> [LangType] -> LangType
+libmod :: Environment -> [LangType] -> LangType
 libmod = libop mod (\x y -> error $ "Arguments to mod must be of IntType.")
 
-lt :: Map String LangType -> [LangType] -> LangType
+lt :: Environment -> [LangType] -> LangType
 lt = libcmp (<) (<) 
 
-lte :: Map String LangType -> [LangType] -> LangType
+lte :: Environment -> [LangType] -> LangType
 lte = libcmp (<=) (<=)
 
-gt :: Map String LangType -> [LangType] -> LangType
+gt :: Environment -> [LangType] -> LangType
 gt = libcmp (>) (>)
 
-gte :: Map String LangType -> [LangType] -> LangType
+gte :: Environment -> [LangType] -> LangType
 gte = libcmp (>=) (>=)
 
-e :: Map String LangType -> [LangType] -> LangType
+e :: Environment -> [LangType] -> LangType
 e _ (IntType x : IntType x2 : xs) =
     BoolType $ x == x2 &&
     case e Map.empty (IntType x2 : xs) of
@@ -317,16 +319,16 @@ e _ (x:[]) = BoolType True
 e _ _ = BoolType False
 
 
-ne :: Map String LangType -> [LangType] -> LangType
+ne :: Environment -> [LangType] -> LangType
 ne env inputs = case e env inputs of
     (BoolType value) -> BoolType $ not value
 
-libnot :: Map String LangType -> [LangType] -> LangType
+libnot :: Environment -> [LangType] -> LangType
 libnot _ (BoolType val : []) = BoolType $ not val
 libnot _ (_:[]) = error $ "Unsupported operand type."
 libnot _ _ = error $ "! takes exactly one argument."
 
-liband :: Map String LangType -> [LangType] -> LangType
+liband :: Environment -> [LangType] -> LangType
 liband _ [] = BoolType True
 liband _ (BoolType val : xs) =
     let (BoolType val2) = liband Map.empty xs
@@ -334,7 +336,7 @@ liband _ (BoolType val : xs) =
         BoolType (val && val2)
 liband _ (_:xs) = error $ "Unsupported operand type."
 
-libor :: Map String LangType -> [LangType] -> LangType
+libor :: Environment -> [LangType] -> LangType
 libor _ [] = BoolType False
 libor _ (BoolType val : xs) =
     let (BoolType val2) = libor Map.empty xs
@@ -342,7 +344,7 @@ libor _ (BoolType val : xs) =
         BoolType (val || val2)
 libor _ (_:xs) = error $ "Unsupported operand type."
 
-libop :: (Int -> Int -> Int) -> (Float -> Float -> Float) -> Map String LangType -> [LangType] -> LangType
+libop :: (Int -> Int -> Int) -> (Float -> Float -> Float) -> Environment -> [LangType] -> LangType
 libop _ _ _ [] = error $ "Must have at least one argument."
 libop _ _ _ (ltype:[]) = ltype
 libop intopfunc fltopfunc _ (IntType val:xs) =
@@ -355,7 +357,7 @@ libop intopfunc fltopfunc _ (FloatType val:xs) =
         (FloatType val2) -> FloatType (val `fltopfunc` val2)
 libop _ _ _ (_:xs) = error $ "Unsupported operand type."
 
-libcmp :: (Int -> Int -> Bool) -> (Float -> Float -> Bool) -> Map String LangType -> [LangType] -> LangType
+libcmp :: (Int -> Int -> Bool) -> (Float -> Float -> Bool) -> Environment -> [LangType] -> LangType
 libcmp _ _ _ [] = BoolType True
 libcmp intcmpfunc fltcmpfunc _ (IntType val1:xs) =
     case libcmp intcmpfunc fltcmpfunc Map.empty xs of

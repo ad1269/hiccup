@@ -99,7 +99,7 @@ tokenize (x:xs)
                 "then" -> KEYWORD_THEN : (tokenize left)
                 "else" -> KEYWORD_ELSE : (tokenize left)
                 otherwise -> VAR name : (tokenize left)
-    | x == ' ' || x == '\n' = tokenize xs
+    | x == ' ' || x == '\n' || x == '\t' = tokenize xs
     | x == '#' = tokenize $ dropWhile (\c -> c /= '\n') xs
     | otherwise = error $ "Unknown character found: " ++ [x]
 
