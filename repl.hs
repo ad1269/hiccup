@@ -1,4 +1,4 @@
-module Main where
+module Repl where
 import System.Environment
 import System.IO
 import Data.Map (Map)
@@ -11,7 +11,7 @@ main = do
     case args of
         [] -> repl emptyEnvironment
         (file: []) -> run file emptyEnvironment
-        otherwise -> error "main only takes up to 1 argument!"
+        otherwise -> error "repl only takes up to 1 argument!"
     
 run :: String -> Environment -> IO ()
 run fileName env = do
