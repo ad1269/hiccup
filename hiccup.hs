@@ -1,4 +1,4 @@
-module Hiccup where
+module Main where
 
 import Parser
 import SemanticAnalyzer
