@@ -1,4 +1,6 @@
 module Main where
+import System.Environment
+import System.IO
 
 import Parser
 import SemanticAnalyzer
@@ -8,11 +10,11 @@ main :: IO ()
 main = do
     args <- getArgs
     case args of
-        (file: []) -> run file emptyEnvironment
+        (file: []) -> build file
         otherwise -> error "hiccup takes exactly 1 argument!"
     
 build :: String -> IO ()
 build fileName = do
     contents <- readFile fileName
     let annotatedProgram = annotate $ parse contents
-    writeFile $ compile annotatedProgram
+    writeFile "out" (compile annotatedProgram)

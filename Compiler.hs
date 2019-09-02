@@ -2,6 +2,7 @@ module Compiler
 ( compile
 ) where
 
+import Parser
 import SemanticAnalyzer
 
 compile :: AnnotatedProgram -> String
@@ -15,4 +16,4 @@ compile (AnnotatedProgram exprs) =
         \syscall                ; Make the syscall\n"
 
 generateCode :: AnnotatedExpr -> String
-generateCode (IntLiteral value) = "movq rax, " ++ show value
+generateCode (AnnotatedExpr exprs annotation) = ""
