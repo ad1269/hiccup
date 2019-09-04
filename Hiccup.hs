@@ -17,4 +17,7 @@ build :: String -> IO ()
 build fileName = do
     contents <- readFile fileName
     let annotatedProgram = annotate $ parse contents
-    writeFile "out" (compile annotatedProgram)
+    writeFile (getOutputFileName fileName) (compile annotatedProgram)
+
+getOutputFileName :: String -> String
+getOutputFileName fileName = (reverse $ drop 3 (reverse fileName)) ++ ".s"
